@@ -1,0 +1,6 @@
+{
+  "name": "Advanced CSS Studio",
+  "description": "Adaptive CSS workbench with responsive auto-fix, CPU performance management, multi-device viewport testing, dark mode, design tokens manager, Chromium legacy browser compatibility scanner, regex production CSS minifier (.min.css), and DeafAuth accessibility preferences export (.txt) with PinkSync and CORS desktop delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
