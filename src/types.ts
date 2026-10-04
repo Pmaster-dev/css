@@ -184,3 +184,47 @@ export interface CompatibilityScanReport {
   searchInsights?: string;
 }
 
+export type UserExperienceMode = 'beginner' | 'intermediate' | 'architect';
+
+export interface MockToProdRisk {
+  id: string;
+  category: 'viewport-rigidity' | 'mobile-notch' | 'cpu-drain' | 'accessibility-trap' | 'css-leak';
+  title: string;
+  plainEnglishExplanation: string;
+  architecturalImpact: string;
+  mockArtifactSnippet: string;
+  prodHardenedSnippet: string;
+  severity: 'critical' | 'high' | 'moderate';
+  autoFixAvailable: boolean;
+}
+
+export interface MockToProdReport {
+  score: number; // 0 to 100 (100 = fully production-ready)
+  status: 'mock-prototype' | 'partially-hardened' | 'production-ready';
+  risks: MockToProdRisk[];
+  summaryPlainEnglish: string;
+  summaryArchitect: string;
+  metrics: {
+    fixedPixelCount: number;
+    viewportHeightTrapCount: number;
+    unprotectedOverflowCount: number;
+    heavyFilterCount: number;
+    missingSafeAreaCount: number;
+  };
+}
+
+export interface CloudBrowserSession {
+  sessionId: string;
+  fingerprintHash: string;
+  status: 'active' | 'isolated' | 'refreshing';
+  createdAt: string;
+  sandboxMode: 'strict-origin-partition' | 'ephemeral-virtual-dom';
+  privacyLevel: 'zero-knowledge-ephemeral';
+  dataBleedPrevented: boolean;
+  activeIframeSandbox: string;
+  networkShield: string;
+  storageIsolation: string;
+  userWorkspaceId: string;
+}
+
+

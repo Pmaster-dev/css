@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { lintCss, LintIssue, LintSeverity, LintCategory } from '../utils/cssLinter';
 import { minifyCss, formatCss, MinifyOptions, MinifyResult } from '../utils/cssMinifier';
+import { downloadFile, downloadViaServer, isRunningInIframe, isRunningInWebView } from '../utils/downloadHelper';
 
 interface CssEditorAndExportProps {
   css: string;
@@ -44,7 +45,9 @@ interface CssEditorAndExportProps {
   onCloseExportModal?: () => void;
 }
 
-const DEMO_ERRORS_CSS = `/* Demo Stylesheet with Syntax Errors & Code Quality Bottlenecks */
+const DEMO_ERRORS_CSS = `/* Demo Stylesheet with Syntax Errors, @import Waterfall & Quality Bottlenecks */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'); /* Architecture Warning: Cascading @import blocks parallel downloads */
+
 .hero-container {
   dispaly: flex; /* Syntax Error: Misspelled property */
   flex-direction: column;
@@ -153,30 +156,39 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
   };
 
   const handleDownload = () => {
-    const blob = new Blob([css], { type: 'text/css' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'advanced-adaptive-styles.css';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Downloaded advanced-adaptive-styles.css');
+    const res = downloadFile({
+      content: css,
+      filename: 'advanced-adaptive-styles.css',
+      mimeType: 'text/css;charset=utf-8',
+      onFallbackCopied: () => {
+        showToast('Direct download blocked by iframe sandbox; CSS copied to clipboard instead!');
+      },
+    });
+    showToast(res.message);
   };
 
   const handleDownloadMinified = () => {
-    const minified = minifyResult.minifiedCss;
-    const blob = new Blob([minified], { type: 'text/css' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'advanced-adaptive-styles.min.css';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Downloaded advanced-adaptive-styles.min.css (production build)');
+    const res = downloadFile({
+      content: minifyResult.minifiedCss,
+      filename: 'advanced-adaptive-styles.min.css',
+      mimeType: 'text/css;charset=utf-8',
+      onFallbackCopied: () => {
+        showToast('Direct download blocked by iframe sandbox; Minified CSS copied to clipboard instead!');
+      },
+    });
+    showToast(res.message);
+  };
+
+  const handleServerDownload = async (isMinified = false) => {
+    const filename = isMinified ? 'advanced-adaptive-styles.min.css' : 'advanced-adaptive-styles.css';
+    const content = isMinified ? minifyResult.minifiedCss : css;
+    showToast(`Streaming ${filename} via server attachment...`);
+    const success = await downloadViaServer(filename, content, 'text/css;charset=utf-8');
+    if (success) {
+      showToast(`Server delivered attachment: ${filename}`);
+    } else {
+      showToast('Server stream completed; verified fallback code copied.');
+    }
   };
 
   const handleCopyMinified = () => {
@@ -871,8 +883,8 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
                 )}
               </div>
 
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-bold text-white">Line {activeIssue.line}:</span>
                   <span
                     className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
@@ -885,10 +897,41 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
                   >
                     {activeIssue.severity}
                   </span>
+                  {activeIssue.label && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+                      {activeIssue.label}
+                    </span>
+                  )}
                   <span className="text-[10px] text-slate-400 font-mono">{activeIssue.rule}</span>
                 </div>
                 <p className="text-xs text-slate-200 mt-1">{activeIssue.message}</p>
-                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+
+                {activeIssue.doNot && (
+                  <p className="text-[11px] text-red-300 mt-1 bg-red-950/40 border border-red-800/40 rounded-lg px-2 py-1 flex items-start gap-1">
+                    <span className="font-bold text-red-400 uppercase text-[10px] shrink-0">Do Not:</span>
+                    <span>{activeIssue.doNot}</span>
+                  </p>
+                )}
+                {activeIssue.warn && (
+                  <p className="text-[11px] text-amber-300 mt-1 bg-amber-950/40 border border-amber-800/40 rounded-lg px-2 py-1 flex items-start gap-1">
+                    <span className="font-bold text-amber-400 uppercase text-[10px] shrink-0">Warn:</span>
+                    <span>{activeIssue.warn}</span>
+                  </p>
+                )}
+                {activeIssue.tip && (
+                  <p className="text-[11px] text-emerald-300 mt-1 bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-2 py-1 flex items-start gap-1">
+                    <span className="font-bold text-emerald-400 uppercase text-[10px] shrink-0">Tip:</span>
+                    <span>{activeIssue.tip}</span>
+                  </p>
+                )}
+                {activeIssue.notes && (
+                  <p className="text-[11px] text-blue-300 mt-1 bg-blue-950/40 border border-blue-800/40 rounded-lg px-2 py-1 flex items-start gap-1">
+                    <span className="font-bold text-blue-400 uppercase text-[10px] shrink-0">Notes:</span>
+                    <span>{activeIssue.notes}</span>
+                  </p>
+                )}
+
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                   <span className="text-blue-400 font-semibold">Suggestion:</span>
                   <span>{activeIssue.suggestion}</span>
                 </p>
@@ -1015,7 +1058,7 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                                 issue.severity === 'error'
@@ -1027,6 +1070,11 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
                             >
                               {issue.severity}
                             </span>
+                            {issue.label && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-mono">
+                                {issue.label}
+                              </span>
+                            )}
                             <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
                               Line {issue.line}
                             </span>
@@ -1041,7 +1089,48 @@ export const CssEditorAndExport: React.FC<CssEditorAndExportProps> = ({
                           {issue.message}
                         </h4>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {/* Detailed Notes, Do Not, Warn, Tip */}
+                        {issue.doNot && (
+                          <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 text-[11px] text-red-800 dark:text-red-300 flex items-start gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold uppercase text-[10px]">Do Not: </span>
+                              <span>{issue.doNot}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {issue.warn && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-900 dark:text-amber-300 flex items-start gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold uppercase text-[10px]">Warn: </span>
+                              <span>{issue.warn}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {issue.tip && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-900 dark:text-emerald-300 flex items-start gap-1.5">
+                            <Lightbulb className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold uppercase text-[10px]">Tip: </span>
+                              <span>{issue.tip}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {issue.notes && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 text-[11px] text-blue-900 dark:text-blue-300 flex items-start gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold uppercase text-[10px]">Notes: </span>
+                              <span>{issue.notes}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                           <span className="font-semibold text-slate-700 dark:text-slate-300">Fix:</span>{' '}
                           {issue.suggestion}
                         </p>

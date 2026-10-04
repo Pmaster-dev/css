@@ -500,3 +500,1014 @@ element.setHTML(untrustedHtmlString, { sanitizer });`,
     externalUrl: 'https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track'
   }
 ];
+
+/**
+ * MDN Layout Cookbook Recipe Specification
+ * Conforms to MDN Web Docs official recipe format:
+ * https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template
+ *
+ * Structure:
+ * 1. Title & Summary
+ * 2. The Solution (HTML + CSS)
+ * 3. How It Works (Detailed layout breakdown)
+ * 4. Browser Support & Fallbacks (@supports, Baseline)
+ * 5. Accessibility Concerns (WCAG 2.1 AA/AAA, screen readers, focus, reduced-motion)
+ * 6. Alternatives (Architectural tradeoffs)
+ */
+
+export interface MdnCookbookRecipe {
+  id: string;
+  title: string;
+  topic: 'crisis' | 'climate' | 'civic' | 'infrastructure' | 'humanitarian';
+  topicLabel: string;
+  summary: string;
+  mdnTemplateRef: string;
+  solution: {
+    html: string;
+    css: string;
+  };
+  howItWorks: {
+    property: string;
+    explanation: string;
+  }[];
+  browserSupport: {
+    baseline: string;
+    safari: string;
+    chrome: string;
+    firefox: string;
+    fallbacks: string;
+  };
+  accessibilityConcerns: {
+    rule: string;
+    guideline: string;
+    implementation: string;
+  }[];
+  alternatives: {
+    approach: string;
+    tradeoff: string;
+  }[];
+}
+
+export const MDN_COOKBOOK_RECIPES: MdnCookbookRecipe[] = [
+  {
+    id: 'recipe-crisis-alert',
+    title: 'Breaking Crisis & Emergency Alert Banner',
+    topic: 'crisis',
+    topicLabel: 'Crisis & Public Safety',
+    summary: 'A persistent, accessible, non-layout-shifting emergency ribbon designed for breaking news, severe civil alerts, and emergency notifications. Uses sticky positioning, safe-area inset adaptation, and a GPU-pulsing live beacon without triggering continuous document layout thrashing.',
+    mdnTemplateRef: 'https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template',
+    solution: {
+      html: `<aside class="mdn-crisis-banner" role="alert" aria-live="assertive" aria-label="Critical Emergency Alert">
+  <div class="banner-inner">
+    <div class="beacon-group">
+      <span class="pulse-beacon" aria-hidden="true"></span>
+      <span class="alert-type">CIVIL EMERGENCY</span>
+    </div>
+    <div class="message-content">
+      <strong>URGENT NOTICE:</strong> Flash flood evacuation active for coastal sectors. Follow designated safety corridors immediately.
+    </div>
+    <div class="banner-actions">
+      <a href="#evac-map" class="action-btn">Evacuation Map</a>
+      <button type="button" class="dismiss-btn" aria-label="Acknowledge and dismiss emergency banner">✕</button>
+    </div>
+  </div>
+</aside>`,
+      css: `/* MDN Layout Cookbook Recipe: Emergency Alert Banner */
+.mdn-crisis-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  background-color: #991b1b; /* High-contrast red (WCAG AAA 7.4:1 contrast ratio) */
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  border-bottom: 2px solid #ef4444;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  isolation: isolate;
+}
+
+.banner-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
+
+.beacon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pulse-beacon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #fef08a;
+  box-shadow: 0 0 0 2px rgba(254, 240, 138, 0.4);
+  animation: beaconPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes beaconPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-beacon {
+    animation: none;
+  }
+}
+
+.alert-type {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.message-content {
+  flex: 1 1 280px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  background: #ffffff;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+}
+
+.action-btn:focus-visible,
+.dismiss-btn:focus-visible {
+  outline: 3px solid #fef08a;
+  outline-offset: 2px;
+}
+
+.dismiss-btn {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+}`
+    },
+    howItWorks: [
+      {
+        property: 'position: sticky & top: 0',
+        explanation: 'Keeps the urgent alert anchored to the top of the viewport during document scrolling without removing it from the natural document flow, preventing jarring Cumulative Layout Shift (CLS).'
+      },
+      {
+        property: 'padding-top: max(..., env(safe-area-inset-top))',
+        explanation: 'Ensures the text is not occluded by physical mobile screen notches, dynamic islands, or browser status bars.'
+      },
+      {
+        property: 'flex-wrap: wrap & flex: 1 1 280px',
+        explanation: 'Allows the message text to expand fluidly on wide desktop monitors while gracefully wrapping below the alert title on narrow smartphones.'
+      },
+      {
+        property: 'isolation: isolate',
+        explanation: 'Creates an independent stacking context so child elements and box-shadows render cleanly above third-party widgets without z-index collisions.'
+      }
+    ],
+    browserSupport: {
+      baseline: 'Widely Available (Baseline 2020)',
+      safari: 'Safari 13+',
+      chrome: 'Chrome 56+',
+      firefox: 'Firefox 59+',
+      fallbacks: 'Older browsers that do not support position: sticky degrade gracefully to standard block-level display at the top of the body.'
+    },
+    accessibilityConcerns: [
+      {
+        rule: 'role="alert" & aria-live="assertive"',
+        guideline: 'WCAG 4.1.3 Status Messages',
+        implementation: 'Screen readers immediately interrupt and announce critical emergency instructions upon DOM insertion.'
+      },
+      {
+        rule: 'High-Contrast Text 7.4:1',
+        guideline: 'WCAG 1.4.6 Contrast (Enhanced)',
+        implementation: 'White text (#FFFFFF) on dark emergency crimson (#991B1B) exceeds both AA (4.5:1) and AAA (7:1) contrast thresholds.'
+      },
+      {
+        rule: 'prefers-reduced-motion',
+        guideline: 'WCAG 2.3.3 Animation from Interactions',
+        implementation: 'Disables the pulsing beacon animation for users susceptible to vestibular distress.'
+      }
+    ],
+    alternatives: [
+      {
+        approach: 'Floating Modal Dialog',
+        tradeoff: 'Obscures underlying content and traps keyboard focus, which can prevent users from reading maps or accessing navigation links during an emergency.'
+      },
+      {
+        approach: 'Bottom Floating Toast',
+        tradeoff: 'Frequently hidden behind mobile software keyboards or bottom action bars; sticky top banners guarantee instant visual discovery.'
+      }
+    ]
+  },
+  {
+    id: 'recipe-climate-heat',
+    title: 'Severe Weather & Climate Heat Hazard Matrix',
+    topic: 'climate',
+    topicLabel: 'Climate & Extreme Weather',
+    summary: 'A localized weather hazard index card leveraging CSS Container Queries to adapt seamlessly from a compact sidebar widget into an expanded 5-day heat-risk matrix, featuring modern perceptual OKLCH color interpolation.',
+    mdnTemplateRef: 'https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template',
+    solution: {
+      html: `<article class="mdn-weather-container" aria-label="Current Extreme Heat Risk Assessment">
+  <div class="weather-card">
+    <header class="card-top">
+      <div class="location-badge">📍 Metro Basin • Zone 4</div>
+      <span class="hazard-level danger">LEVEL 4: EXTREME HEAT</span>
+    </header>
+
+    <div class="metrics-row">
+      <div class="temp-readout">
+        <span class="temp-val">108°</span>
+        <span class="temp-unit">F</span>
+      </div>
+      <div class="heat-index">
+        <span class="index-label">Heat Index (Feels Like)</span>
+        <strong class="index-val">116°F</strong>
+        <span class="advisory">Wet Bulb Globe: 88°F (Dangerous)</span>
+      </div>
+    </div>
+
+    <!-- OKLCH Gradient Heat Spectrum Bar -->
+    <div class="spectrum-track" role="meter" aria-valuenow="108" aria-valuemin="70" aria-valuemax="120" aria-label="Temperature Hazard Scale">
+      <div class="spectrum-bar" style="width: 78%;"></div>
+    </div>
+
+    <footer class="safety-advisory">
+      <strong>Public Health Protocol:</strong> High risk of heat stroke for outdoor workers. Hydration stations active across civic centers.
+    </footer>
+  </div>
+</article>`,
+      css: `/* MDN Layout Cookbook Recipe: Climate Heat Hazard Matrix */
+.mdn-weather-container {
+  container-type: inline-size;
+  container-name: weatherWidget;
+  width: 100%;
+  max-width: 680px;
+}
+
+.weather-card {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.location-badge {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.hazard-level {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+}
+
+.hazard-level.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.metrics-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+}
+
+.temp-readout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.temp-val {
+  font-size: clamp(2.5rem, 2rem + 2vw, 4rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.temp-unit {
+  font-size: 1.5rem;
+  color: #f87171;
+  font-weight: 700;
+}
+
+.heat-index {
+  display: flex;
+  flex-direction: column;
+}
+
+.index-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.index-val {
+  font-size: 1.5rem;
+  color: #fb923c;
+}
+
+.advisory {
+  font-size: 0.75rem;
+  color: #fca5a5;
+  margin-top: 0.15rem;
+}
+
+/* OKLCH Perceptual Spectrum Bar */
+.spectrum-track {
+  height: 12px;
+  width: 100%;
+  background: #1e293b;
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.spectrum-bar {
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    oklch(0.7 0.15 140), /* Green */
+    oklch(0.75 0.18 85), /* Amber */
+    oklch(0.65 0.25 25), /* Vivid Red */
+    oklch(0.55 0.28 350) /* Deep Violet Extreme */
+  );
+  border-radius: 9999px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.safety-advisory {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  background: #1e293b;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border-left: 3px solid #ef4444;
+}
+
+/* Container Query Adaptability */
+@container weatherWidget (min-width: 480px) {
+  .weather-card {
+    padding: 2rem;
+  }
+  .metrics-row {
+    gap: 3rem;
+  }
+}`
+    },
+    howItWorks: [
+      {
+        property: 'container-type: inline-size',
+        explanation: 'Establishes a container context based on the component parent width, allowing the card to adapt dynamically whether embedded in a narrow sidebar or a full-width dashboard.'
+      },
+      {
+        property: 'linear-gradient(to right, oklch(...))',
+        explanation: 'Utilizes modern OKLCH color space for perceptual uniformity without muddy gray transitions common in legacy sRGB gradients.'
+      },
+      {
+        property: 'role="meter" & aria-valuenow',
+        explanation: 'Provides semantic accessibility markup for assistive devices to convey current temperature relative to minimum and maximum thresholds.'
+      }
+    ],
+    browserSupport: {
+      baseline: 'Baseline 2023 (Widely Available)',
+      safari: 'Safari 16.0+',
+      chrome: 'Chrome 105+',
+      firefox: 'Firefox 110+',
+      fallbacks: 'Older engines fallback to standard flexbox stacking without container query resizing.'
+    },
+    accessibilityConcerns: [
+      {
+        rule: 'WCAG 1.4.1 Use of Color',
+        guideline: 'Information conveyed by color must also be available in text',
+        implementation: 'Explicit text indicators ("LEVEL 4: EXTREME HEAT", "116°F Feels Like") accompany the color spectrum.'
+      },
+      {
+        rule: 'Accessible meter semantics',
+        guideline: 'ARIA Meter Specification',
+        implementation: 'role="meter" informs screen reader users of numerical range and current position.'
+      }
+    ],
+    alternatives: [
+      {
+        approach: 'Viewport Media Queries (@media)',
+        tradeoff: 'Fails when placed inside nested multi-column layouts where viewport is wide but component width is narrow.'
+      }
+    ]
+  },
+  {
+    id: 'recipe-election-ballot',
+    title: 'Civic Election & Referendum Live Results Split',
+    topic: 'civic',
+    topicLabel: 'Civic Tech & Elections',
+    summary: 'A proportional voting results visualizer allocating candidate ballot shares using CSS Grid and Flexbox proportions, complete with high-contrast colorblind-safe boundary dividers and accessible numerical data tables.',
+    mdnTemplateRef: 'https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template',
+    solution: {
+      html: `<section class="mdn-election-tracker" aria-labelledby="election-heading">
+  <div class="election-header">
+    <div>
+      <span class="precinct-status">94% Precincts Reporting</span>
+      <h3 id="election-heading">Mayor General Election Ballot</h3>
+    </div>
+    <span class="threshold-pill">50% + 1 to Avoid Runoff</span>
+  </div>
+
+  <!-- Accessible Proportional Vote Bar -->
+  <div class="proportional-bar" role="progressbar" aria-valuenow="52" aria-valuemin="0" aria-valuemax="100" aria-label="Candidate A Vote Percentage">
+    <div class="party-segment party-blue" style="width: 52%;" title="Candidate A: 52.4%">52.4%</div>
+    <div class="party-segment party-orange" style="width: 41%;" title="Candidate B: 41.2%">41.2%</div>
+    <div class="party-segment party-neutral" style="width: 7%;" title="Others: 6.4%">6.4%</div>
+    <div class="threshold-marker" style="left: 50%;" aria-hidden="true" title="Majority Threshold"></div>
+  </div>
+
+  <!-- Accessible Structured Candidate Breakdown -->
+  <ul class="candidate-list">
+    <li class="candidate-item">
+      <span class="party-dot blue"></span>
+      <span class="candidate-name">Elena Rodriguez (Forward Coalition)</span>
+      <span class="candidate-votes">342,109 votes</span>
+      <strong class="candidate-pct">52.4%</strong>
+    </li>
+    <li class="candidate-item">
+      <span class="party-dot orange"></span>
+      <span class="candidate-name">Marcus Vance (Civic Renewal)</span>
+      <span class="candidate-votes">269,142 votes</span>
+      <strong class="candidate-pct">41.2%</strong>
+    </li>
+    <li class="candidate-item">
+      <span class="party-dot gray"></span>
+      <span class="candidate-name">Write-in / Uncommitted</span>
+      <span class="candidate-votes">41,850 votes</span>
+      <strong class="candidate-pct">6.4%</strong>
+    </li>
+  </ul>
+</section>`,
+      css: `/* MDN Layout Cookbook Recipe: Election & Referendum Results */
+.mdn-election-tracker {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #f8fafc;
+  max-width: 680px;
+  width: 100%;
+}
+
+.election-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.precinct-status {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  font-family: monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.election-header h3 {
+  margin: 0.25rem 0 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.threshold-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-weight: 600;
+}
+
+.proportional-bar {
+  display: flex;
+  height: 36px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #1e293b;
+  margin-bottom: 1.25rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.party-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-right: 1px solid #0f172a;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.party-blue { background: #2563eb; }
+.party-orange { background: #ea580c; }
+.party-neutral { background: #64748b; }
+
+.threshold-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+  z-index: 2;
+}
+
+.threshold-marker::after {
+  content: '50%';
+  position: absolute;
+  top: -18px;
+  left: -12px;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.candidate-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: #1e293b;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+}
+
+.party-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.party-dot.blue { background: #2563eb; }
+.party-dot.orange { background: #ea580c; }
+.party-dot.gray { background: #64748b; }
+
+.candidate-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.candidate-votes {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.candidate-pct {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  min-width: 44px;
+  text-align: right;
+}`
+    },
+    howItWorks: [
+      {
+        property: 'display: flex & width: % on segments',
+        explanation: 'Creates a responsive, contiguous horizontal vote distribution bar that dynamically resizes with container width.'
+      },
+      {
+        property: 'position: absolute on .threshold-marker',
+        explanation: 'Pins the critical 50% majority threshold indicator precisely at left: 50% across any viewport width.'
+      },
+      {
+        property: 'candidate-name { flex: 1 }',
+        explanation: 'Ensures the candidate name occupies remaining space, pushing votes and percentages into a neat vertical column.'
+      }
+    ],
+    browserSupport: {
+      baseline: 'Full Cross-Browser Baseline',
+      safari: 'All Versions',
+      chrome: 'All Versions',
+      firefox: 'All Versions',
+      fallbacks: 'Supported universally across all modern and legacy rendering engines.'
+    },
+    accessibilityConcerns: [
+      {
+        rule: 'WCAG 1.4.11 Non-text Contrast',
+        guideline: 'Visual boundaries must meet 3:1 contrast against adjacent colors',
+        implementation: 'Dark 1px divider border between adjacent candidate segments prevents color bleeding for color-vision-deficient users.'
+      },
+      {
+        rule: 'ARIA role="progressbar"',
+        guideline: 'Screen reader numerical reporting',
+        implementation: 'aria-valuenow accurately represents leading vote share for non-visual navigation.'
+      }
+    ],
+    alternatives: [
+      {
+        approach: 'Canvas-Based Donut Chart',
+        tradeoff: 'HTML canvas elements cannot be inspected by screen readers without extensive custom shadow DOM fallbacks.'
+      }
+    ]
+  },
+  {
+    id: 'recipe-humanitarian-aid',
+    title: 'Humanitarian Aid & Relief Logistics Matrix',
+    topic: 'humanitarian',
+    topicLabel: 'Humanitarian & Aid Logistics',
+    summary: 'A multi-stakeholder crisis supply chain card using CSS Grid subgrid to keep relief milestone headers, target metrics, and donate CTAs horizontally aligned across multiple responsive cards.',
+    mdnTemplateRef: 'https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template',
+    solution: {
+      html: `<div class="mdn-relief-matrix" aria-label="Active Humanitarian Relief Deployments">
+  <article class="relief-card">
+    <header class="card-head">
+      <span class="urgency-badge high">Critical Priority</span>
+      <h4>Potable Water & Water Purification Kits</h4>
+      <p class="desc">Mobile reverse osmosis filtration units for coastal communities displaced by hurricane landfall.</p>
+    </header>
+    <div class="metrics-block">
+      <div class="progress-info">
+        <span>Funded: $184,200</span>
+        <strong>Goal: $250,000</strong>
+      </div>
+      <progress value="74" max="100" class="relief-progress" aria-label="74% of water purification goal reached"></progress>
+    </div>
+    <footer class="card-actions">
+      <button type="button" class="donate-btn">Deploy Kits ($50)</button>
+    </footer>
+  </article>
+
+  <article class="relief-card">
+    <header class="card-head">
+      <span class="urgency-badge medium">Urgent Dispatch</span>
+      <h4>Emergency Medical Trauma Modules</h4>
+      <p class="desc">Sterile trauma packs, surgical antibiotics, and pediatric field triage units.</p>
+    </header>
+    <div class="metrics-block">
+      <div class="progress-info">
+        <span>Funded: $410,500</span>
+        <strong>Goal: $500,000</strong>
+      </div>
+      <progress value="82" max="100" class="relief-progress" aria-label="82% of medical trauma goal reached"></progress>
+    </div>
+    <footer class="card-actions">
+      <button type="button" class="donate-btn">Deploy Medical Pack ($100)</button>
+    </footer>
+  </article>
+</div>`,
+      css: `/* MDN Layout Cookbook Recipe: Humanitarian Aid Relief Matrix */
+.mdn-relief-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  grid-template-rows: auto 1fr auto;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.relief-card {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #f8fafc;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.card-head h4 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.35rem;
+  color: #ffffff;
+}
+
+.card-head .desc {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.urgency-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.urgency-badge.high {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.urgency-badge.medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.metrics-block {
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.progress-info strong {
+  color: #f8fafc;
+}
+
+.relief-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  overflow: hidden;
+  accent-color: #10b981;
+}
+
+.card-actions {
+  padding-top: 1.25rem;
+}
+
+.donate-btn {
+  width: 100%;
+  min-height: 48px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.donate-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.donate-btn:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}`
+    },
+    howItWorks: [
+      {
+        property: 'grid-template-rows: subgrid',
+        explanation: 'Enables sibling relief cards to participate in the master track sizing, ensuring that the metric progress and donate button rows align regardless of heading length differences.'
+      },
+      {
+        property: 'min-height: 48px on donate-btn',
+        explanation: 'Conforms to WCAG 2.5.5 touch target size requirements, essential for volunteers and donors interacting from mobile devices.'
+      },
+      {
+        property: 'native HTML <progress> tag',
+        explanation: 'Provides built-in platform accessibility without requiring custom ARIA attribute synchronization.'
+      }
+    ],
+    browserSupport: {
+      baseline: 'Baseline 2024 (Supported in all modern engines)',
+      safari: 'Safari 16.0+',
+      chrome: 'Chrome 117+',
+      firefox: 'Firefox 71+',
+      fallbacks: 'Older Chromium engines without subgrid support fall back to standard flex-direction: column layout.'
+    },
+    accessibilityConcerns: [
+      {
+        rule: 'WCAG 2.5.5 Target Size',
+        guideline: 'Minimum touch target size of 44x44px (or 48px for AAA)',
+        implementation: 'Buttons have min-height: 48px for mobile users under emergency conditions.'
+      }
+    ],
+    alternatives: [
+      {
+        approach: 'JavaScript Height Matching (MatchHeight.js)',
+        tradeoff: 'Causes layout recalculations on every resize; CSS subgrid operates natively on the browser layout thread.'
+      }
+    ]
+  },
+  {
+    id: 'recipe-transit-disruption',
+    title: 'Public Transit & Infrastructure Disruption Live Ticker',
+    topic: 'infrastructure',
+    topicLabel: 'Transit & Infrastructure',
+    summary: 'A real-time transit disruption status ribbon with live indicator badges, pause-on-hover / pause-on-focus keyboard trapping, and complete prefers-reduced-motion support for civic infrastructure portals.',
+    mdnTemplateRef: 'https://developer.mozilla.org/en-US/docs/Web/CSS/How_to/Layout_cookbook/Contribute_a_recipe/Cookbook_template',
+    solution: {
+      html: `<div class="mdn-transit-ticker" role="region" aria-label="Real-time Transit Network Service Status">
+  <div class="ticker-badge">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span>LIVE DISRUPTIONS</span>
+  </div>
+  <div class="ticker-marquee-track">
+    <div class="ticker-content" tabindex="0" aria-label="Transit alerts ticker. Focus or hover to pause scroll.">
+      <span class="status-item"><strong class="tag suspended">RED LINE:</strong> Track signal failure between 14th St & Metro Center. Shuttle buses active.</span>
+      <span class="status-item"><strong class="tag delayed">BLUE LINE:</strong> 15-minute headway delays due to emergency power maintenance.</span>
+      <span class="status-item"><strong class="tag normal">GREEN LINE:</strong> Normal scheduled operations on all regional branches.</span>
+    </div>
+  </div>
+</div>`,
+      css: `/* MDN Layout Cookbook Recipe: Transit & Infrastructure Ticker */
+.mdn-transit-ticker {
+  display: flex;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 840px;
+  width: 100%;
+  color: #f8fafc;
+}
+
+.ticker-badge {
+  background: #1e293b;
+  padding: 0.65rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-right: 1px solid #334155;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.ticker-marquee-track {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, black 20px, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 20px, black 95%, transparent);
+}
+
+.ticker-content {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: tickerSlide 25s linear infinite;
+  will-change: transform;
+  padding: 0.65rem 1rem;
+}
+
+.ticker-content:hover,
+.ticker-content:focus-visible {
+  animation-play-state: paused;
+}
+
+@keyframes tickerSlide {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-marquee-track {
+    mask-image: none;
+    -webkit-mask-image: none;
+    overflow-x: auto;
+  }
+  .ticker-content {
+    animation: none;
+  }
+}
+
+.status-item {
+  font-size: 0.8125rem;
+  margin-right: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.tag.suspended { background: #991b1b; color: #fecaca; }
+.tag.delayed { background: #92400e; color: #fef3c7; }
+.tag.normal { background: #065f46; color: #d1fae5; }`
+    },
+    howItWorks: [
+      {
+        property: 'animation-play-state: paused on :hover & :focus-visible',
+        explanation: 'Complies with WCAG 2.2.2 requirements allowing users to pause moving content to read at their own pace.'
+      },
+      {
+        property: 'mask-image: linear-gradient(...)',
+        explanation: 'Creates smooth edge feathering on both ends of the ticker track without adding extra wrapper markup.'
+      },
+      {
+        property: 'translate3d(-50%, 0, 0)',
+        explanation: 'Executes marquee sliding exclusively on the GPU compositor thread, guaranteeing 60fps frame rates.'
+      }
+    ],
+    browserSupport: {
+      baseline: 'Widely Available (Full Baseline)',
+      safari: 'All Versions',
+      chrome: 'All Versions',
+      firefox: 'All Versions',
+      fallbacks: 'Degrades automatically to a scrollable container in legacy environments.'
+    },
+    accessibilityConcerns: [
+      {
+        rule: 'WCAG 2.2.2 Pause, Stop, Hide',
+        guideline: 'Moving, blinking, or scrolling content must be pauseable',
+        implementation: 'Both cursor hover and keyboard focus pause ticker playback immediately.'
+      }
+    ],
+    alternatives: [
+      {
+        approach: 'Legacy HTML <marquee>',
+        tradeoff: 'Deprecated, unpausable, and lacks modern accessibility semantics.'
+      }
+    ]
+  }
+];
+

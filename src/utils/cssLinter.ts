@@ -22,6 +22,11 @@ export interface LintIssue {
   rule: string;
   message: string;
   suggestion: string;
+  label?: string;
+  notes?: string;
+  doNot?: string;
+  warn?: string;
+  tip?: string;
   quickFix?: LintQuickFix;
 }
 
@@ -258,6 +263,34 @@ export function lintCss(css: string): LintResult {
       currentSelector = trimmed.replace('{', '').trim();
     }
 
+    // Performance & Architecture Rule: @import Cascading Waterfall Blocker
+    if (trimmed.startsWith('@import') || trimmed.includes('@import ')) {
+      issues.push({
+        id: `perf-blocking-import-${lineNumber}`,
+        line: lineNumber,
+        column: line.indexOf('@import') + 1,
+        length: 7,
+        severity: 'warning',
+        category: 'performance',
+        rule: 'no-import-in-production-css',
+        label: '@import Blocking Waterfall',
+        message: '`@import` blocks parallel resource fetching and introduces sequential network waterfalls.',
+        suggestion: 'Replace with `<link rel="stylesheet">` or prebundle stylesheets into a single production `.min.css` build.',
+        doNot: 'DO NOT use `@import` inside production stylesheets because browsers cannot discover or request secondary files until the parent CSS has downloaded and parsed.',
+        warn: 'Warning: `@import url(...)` destroys parallel asset downloading and can add 300ms–1500ms latency to First Contentful Paint (FCP).',
+        tip: 'Tip: Move external fonts and stylesheets to the HTML `<head>` using `<link rel="preload" as="style">` or compile into a unified production stylesheet using the Studio Minifier.',
+        notes: 'In HTTP/2 and HTTP/3 environments, parallel `<link>` tags allow simultaneous socket streaming, whereas `@import` forces a waterfall chain.',
+        quickFix: {
+          label: 'Comment out @import (use <link> in HTML)',
+          apply: (fullCss) => {
+            const arr = fullCss.split('\n');
+            arr[lineIdx] = `/* ${arr[lineIdx].trim()} -- Moved to HTML <link> */`;
+            return arr.join('\n');
+          }
+        }
+      });
+    }
+
     // Check for unclosed single or double quotes
     const singleQuotes = (line.match(/'/g) || []).length;
     const doubleQuotes = (line.match(/"/g) || []).length;
@@ -398,8 +431,13 @@ export function lintCss(css: string): LintResult {
             severity: 'suggestion',
             category: 'responsive',
             rule: 'prefer-dynamic-viewport-unit',
+            label: 'Mobile Viewport Jumping',
             message: '`100vh` causes sudden layout jumping on mobile devices when browser address bars collapse.',
             suggestion: 'Use modern dynamic viewport height `100dvh` (Dynamic Viewport Height) for smooth mobile layouts.',
+            doNot: 'DO NOT use 100vh on mobile hero sections because mobile browser address bars resize the viewport dynamically.',
+            warn: 'Warning: 100vh creates noticeable layout shift and scroll jump when users scroll on iOS Safari and Android Chrome.',
+            tip: 'Tip: Upgrade to 100dvh for automatic adaptation to mobile URL navigation chrome.',
+            notes: 'CSS Values and Units Module Level 4 introduces dvh/svh/lvh specifically to solve mobile address bar resizing.',
             quickFix: {
               label: 'Upgrade to 100dvh',
               apply: (fullCss) => {
@@ -422,8 +460,13 @@ export function lintCss(css: string): LintResult {
             severity: 'warning',
             category: 'responsive',
             rule: 'no-rigid-pixel-width',
+            label: 'Rigid Mobile Overflow',
             message: `Fixed '${rawProp}: ${fixedWidthMatch[0]}' exceeds mobile screen bounds (< 390px) and will trigger horizontal scrollbars.`,
             suggestion: `Wrap with fluid clamping or container max-width: 'width: min(100%, ${pxVal}px)' or 'max-width: 100%'.`,
+            doNot: `DO NOT hardcode fixed pixel widths (${fixedWidthMatch[0]}) directly on content containers without a responsive constraint.`,
+            warn: `Warning: This triggers horizontal overflow scrollbars and breaks mobile layout responsiveness on screens under ${fixedWidthMatch[0]}.`,
+            tip: `Tip: Use 'width: min(100%, ${pxVal}px)' or 'max-width: 100%' for fluid adaptation.`,
+            notes: 'Mobile viewports range from 320px to 430px wide; any fixed element wider than 360px guarantees layout truncation.',
             quickFix: {
               label: `Make responsive: min(100%, ${pxVal}px)`,
               apply: (fullCss) => {
@@ -450,8 +493,13 @@ export function lintCss(css: string): LintResult {
               severity: 'warning',
               category: 'performance',
               rule: 'prefer-gpu-composited-transforms',
+              label: 'CPU Layout Thrashing',
               message: `Transitioning layout geometry property '${matchedSlow.join(', ')}' triggers CPU reflow and drops frame rates below 60fps.`,
               suggestion: "Animate GPU-composited properties `transform` (e.g. translate, scale) and `opacity` instead.",
+              doNot: `DO NOT animate '${matchedSlow.join(', ')}' because geometry changes trigger synchronous layout reflow and repaint on every frame.`,
+              warn: 'Warning: Geometry animation forces CPU thread rendering, dropping frames below 60fps on mobile devices.',
+              tip: 'Tip: Use GPU-composited transforms like `transform: translate3d(x, y, 0)` or `transform: scale(...)` alongside `opacity`.',
+              notes: 'Transforms and opacity are composited directly on the GPU compositor thread without invalidating document layout.',
               quickFix: {
                 label: 'Replace with transform & opacity',
                 apply: (fullCss) => {
@@ -473,8 +521,13 @@ export function lintCss(css: string): LintResult {
             severity: 'error',
             category: 'a11y',
             rule: 'no-outline-none-without-focus',
+            label: 'Keyboard A11y Focus Loss',
             message: 'Removing focus outline with `outline: none` breaks keyboard accessibility for screen reader and keyboard users.',
             suggestion: 'Provide a visible focus indicator using `:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }`.',
+            doNot: 'DO NOT remove focus outlines with outline: none without providing an accessible :focus-visible focus ring.',
+            warn: 'Warning: Eliminating focus styling fails WCAG 2.1 Criterion 2.4.7 (Focus Visible) and leaves keyboard navigators blind.',
+            tip: 'Tip: Use `:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }` to maintain mouse aesthetics while supporting keyboard focus.',
+            notes: 'Modern browsers support :focus-visible, which selectively shows outlines only when users navigate via keyboard or assistive tech.',
             quickFix: {
               label: 'Replace with accessible focus ring',
               apply: (fullCss) => {

@@ -17,7 +17,8 @@ import {
   BookOpen,
   Globe,
   Chrome,
-  Sliders
+  Sliders,
+  Layers
 } from 'lucide-react';
 import { ThemeMode, CpuMode, DevicePreset } from '../types';
 import { DEVICE_PRESETS } from '../data/devicePresets';
@@ -34,10 +35,11 @@ interface HeaderProps {
   lintIssueCount?: number;
   lintErrorCount?: number;
   legacyRiskCount?: number;
+  mockToProdRiskCount?: number;
   onOpenExport: () => void;
   onRunAutofixAll: () => void;
-  activeTab: 'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy';
-  onSelectTab: (tab: 'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy') => void;
+  activeTab: 'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy' | 'mocktoprod';
+  onSelectTab: (tab: 'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy' | 'mocktoprod') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -52,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
   lintIssueCount,
   lintErrorCount,
   legacyRiskCount,
+  mockToProdRiskCount,
   onOpenExport,
   onRunAutofixAll,
   activeTab,
@@ -359,6 +362,28 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 uppercase">
               Chromium
+            </span>
+          )}
+        </button>
+
+        <button
+          id="tab-mocktoprod"
+          onClick={() => onSelectTab('mocktoprod')}
+          className={`px-3.5 py-2 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+            activeTab === 'mocktoprod'
+              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Mock-to-Prod Engineering</span>
+          {typeof mockToProdRiskCount === 'number' && mockToProdRiskCount > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+              {mockToProdRiskCount}
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 uppercase">
+              Layered
             </span>
           )}
         </button>

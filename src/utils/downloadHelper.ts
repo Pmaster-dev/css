@@ -1,12 +1,108 @@
 /**
- * Resilient File Download Utility
+ * Resilient File Download Utility & MIME Pair Adjustment Engine
  * 
  * Solves:
- * 1. iFrame Sandbox restrictions (AI Studio preview iframe blocking <a download>)
+ * 1. iFrame Sandbox restrictions (AI Studio preview iframe blocking synthetic <a download>)
  * 2. Mobile WebView limitations (Android/iOS WebView missing native DownloadListener)
  * 3. Blob URL race conditions (premature URL.revokeObjectURL breaking download stream)
- * 4. Fallback to Data URI, Server Attachment, and Clipboard
+ * 4. MIME Pair Adjustments (ensures proper content-type, charset, and disposition headers)
+ * 5. Multi-tier Fallback (Blob with delayed revocation -> Data URI -> Server Attachment -> Clipboard)
  */
+
+export interface MimePairAdjustment {
+  extension: string;
+  mimeType: string;
+  charset: string;
+  disposition: 'attachment' | 'inline';
+  description: string;
+  recommendedBuffer: 'string' | 'blob' | 'arraybuffer';
+}
+
+/**
+ * Standard MIME Pair Adjustments Mapping
+ * Defines precise content headers, charsets, and disposition modes for all workbench assets.
+ */
+export const MIME_PAIR_ADJUSTMENTS: Record<string, MimePairAdjustment> = {
+  css: {
+    extension: '.css',
+    mimeType: 'text/css',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'Cascading Style Sheet',
+    recommendedBuffer: 'string',
+  },
+  minCss: {
+    extension: '.min.css',
+    mimeType: 'text/css',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'Production Compressed CSS Bundle',
+    recommendedBuffer: 'string',
+  },
+  txt: {
+    extension: '.txt',
+    mimeType: 'text/plain',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'Plaintext Accessibility & Configuration Manifest',
+    recommendedBuffer: 'string',
+  },
+  json: {
+    extension: '.json',
+    mimeType: 'application/json',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'JSON Schema & Agent Configuration',
+    recommendedBuffer: 'string',
+  },
+  agents: {
+    extension: '.agents',
+    mimeType: 'text/markdown',
+    charset: 'utf-8',
+    disposition: 'inline',
+    description: 'AI Agent Capability & Discovery Manifest',
+    recommendedBuffer: 'string',
+  },
+  svg: {
+    extension: '.svg',
+    mimeType: 'image/svg+xml',
+    charset: 'utf-8',
+    disposition: 'inline',
+    description: 'Scalable Vector Graphics Markup',
+    recommendedBuffer: 'string',
+  },
+  html: {
+    extension: '.html',
+    mimeType: 'text/html',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'HTML5 Component Template Markup',
+    recommendedBuffer: 'string',
+  },
+};
+
+/**
+ * Resolves the matching MIME Pair adjustment based on file extension
+ */
+export function resolveMimePair(filename: string, overrideMime?: string): MimePairAdjustment {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.min.css')) return MIME_PAIR_ADJUSTMENTS.minCss;
+  if (lower.endsWith('.css')) return MIME_PAIR_ADJUSTMENTS.css;
+  if (lower.endsWith('.txt')) return MIME_PAIR_ADJUSTMENTS.txt;
+  if (lower.endsWith('.json')) return MIME_PAIR_ADJUSTMENTS.json;
+  if (lower.endsWith('.agents') || lower === '.agents') return MIME_PAIR_ADJUSTMENTS.agents;
+  if (lower.endsWith('.svg')) return MIME_PAIR_ADJUSTMENTS.svg;
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return MIME_PAIR_ADJUSTMENTS.html;
+
+  return {
+    extension: filename.includes('.') ? `.${filename.split('.').pop()}` : '.txt',
+    mimeType: overrideMime || 'text/plain',
+    charset: 'utf-8',
+    disposition: 'attachment',
+    description: 'Generic Document',
+    recommendedBuffer: 'string',
+  };
+}
 
 export interface DownloadFileOptions {
   content: string;
@@ -19,6 +115,7 @@ export interface DownloadResult {
   success: boolean;
   method: 'blob' | 'data-uri' | 'server' | 'clipboard' | 'window';
   message: string;
+  mimeAdjustment?: MimePairAdjustment;
 }
 
 /**
@@ -49,16 +146,19 @@ export function isRunningInWebView(): boolean {
 export function downloadFile({
   content,
   filename,
-  mimeType = 'text/css;charset=utf-8',
+  mimeType,
   onFallbackCopied,
 }: DownloadFileOptions): DownloadResult {
   if (typeof window === 'undefined') {
     return { success: false, method: 'blob', message: 'Window is undefined' };
   }
 
-  // Attempt 1: Standard Blob Anchor Download with Delayed Revocation
+  const mimeAdj = resolveMimePair(filename, mimeType);
+  const effectiveMime = `${mimeAdj.mimeType};charset=${mimeAdj.charset}`;
+
+  // Attempt 1: Standard Blob Anchor Download with Delayed Revocation (60s)
   try {
-    const blob = new Blob([content], { type: mimeType });
+    const blob = new Blob([content], { type: effectiveMime });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -74,7 +174,9 @@ export function downloadFile({
     // WebViews and sandboxed browsers require time to read the stream.
     setTimeout(() => {
       try {
-        document.body.removeChild(link);
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
         window.URL.revokeObjectURL(url);
       } catch {
         // cleanup ignore
@@ -85,6 +187,7 @@ export function downloadFile({
       success: true,
       method: 'blob',
       message: `Downloading ${filename}...`,
+      mimeAdjustment: mimeAdj,
     };
   } catch (blobErr) {
     console.warn('[DownloadHelper] Blob download failed, attempting data URI fallback:', blobErr);
@@ -92,7 +195,7 @@ export function downloadFile({
 
   // Attempt 2: Data URI Fallback
   try {
-    const dataUri = `data:${mimeType},${encodeURIComponent(content)}`;
+    const dataUri = `data:${effectiveMime},${encodeURIComponent(content)}`;
     const link = document.createElement('a');
     link.href = dataUri;
     link.download = filename;
@@ -103,7 +206,9 @@ export function downloadFile({
 
     setTimeout(() => {
       try {
-        document.body.removeChild(link);
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
       } catch {
         // ignore
       }
@@ -113,6 +218,7 @@ export function downloadFile({
       success: true,
       method: 'data-uri',
       message: `Downloaded via Data URI: ${filename}`,
+      mimeAdjustment: mimeAdj,
     };
   } catch (dataErr) {
     console.warn('[DownloadHelper] Data URI failed, falling back to clipboard:', dataErr);
@@ -126,7 +232,8 @@ export function downloadFile({
       return {
         success: true,
         method: 'clipboard',
-        message: 'Download blocked by browser sandbox. Code was copied to clipboard instead!',
+        message: 'Download blocked by browser iframe sandbox. Code was copied to clipboard instead!',
+        mimeAdjustment: mimeAdj,
       };
     }
   } catch (clipErr) {
@@ -136,7 +243,8 @@ export function downloadFile({
   return {
     success: false,
     method: 'blob',
-    message: 'Unable to initiate file download in this restricted environment. Please copy the code directly.',
+    message: 'Unable to initiate file download in this restricted environment. Please copy code directly.',
+    mimeAdjustment: mimeAdj,
   };
 }
 
@@ -144,14 +252,19 @@ export function downloadFile({
  * Server-driven download helper via HTTP POST form/fetch
  * Uses Content-Disposition: attachment for maximum WebView/iFrame compatibility
  */
-export async function downloadViaServer(filename: string, content: string, mimeType = 'text/css'): Promise<boolean> {
+export async function downloadViaServer(filename: string, content: string, mimeType?: string): Promise<boolean> {
+  const mimeAdj = resolveMimePair(filename, mimeType);
   try {
     const response = await fetch('/api/download/file', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ filename, content, mimeType }),
+      body: JSON.stringify({ 
+        filename, 
+        content, 
+        mimeType: `${mimeAdj.mimeType}; charset=${mimeAdj.charset}` 
+      }),
     });
 
     if (!response.ok) throw new Error('Server download response not ok');
@@ -165,14 +278,16 @@ export async function downloadViaServer(filename: string, content: string, mimeT
     link.click();
 
     setTimeout(() => {
-      document.body.removeChild(link);
+      if (link.parentNode) {
+        document.body.removeChild(link);
+      }
       window.URL.revokeObjectURL(url);
     }, 60000);
 
     return true;
   } catch (err) {
     console.warn('[DownloadHelper] Server download failed, falling back to local:', err);
-    const res = downloadFile({ content, filename, mimeType });
+    const res = downloadFile({ content, filename, mimeType: mimeAdj.mimeType });
     return res.success;
   }
 }

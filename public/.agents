@@ -1,0 +1,42 @@
+# .agents - AI Agent Capabilities & System Discovery Manifest
+<!-- Advanced CSS Studio System Core Engine -->
+
+## 1. System Identity
+- Provider: Advanced CSS Studio Edge Engine
+- Workbench: Adaptive CSS Workbench & Layout Engineering Suite
+- Discovery Path: /etc/ai-agent-manifest.json
+- Schema: 2026.10-v1
+
+## 2. [file provider] Protocol & MIME Adjustments
+- Protocol: css-studio-vfs://
+- Mount Point: /studio-workspace
+- Engine Features:
+  - 60s Delayed Revocation on Blob Streams (mitigates Chromium race conditions)
+  - Data URI Fallback for sandboxed iframes
+  - Content-Disposition: attachment server streaming via /api/download/file
+  - Clipboard buffer interceptor if disk write is rejected
+
+### Standard MIME Pair Adjustments
+- .css      : text/css; charset=utf-8 (attachment)
+- .min.css  : text/css; charset=utf-8 (attachment)
+- .txt      : text/plain; charset=utf-8 (attachment)
+- .json     : application/json; charset=utf-8 (attachment)
+- .agents   : text/markdown; charset=utf-8 (inline)
+- .svg      : image/svg+xml; charset=utf-8 (inline)
+- .html     : text/html; charset=utf-8 (attachment)
+
+## 3. [api edge function and discovery in /etc]
+- Edge Config: /etc/ai-agent-manifest.json
+- Symlink: /etc/css-studio/agent.conf
+- Endpoints:
+  - POST /api/download/file (Attachment Stream with Content-Disposition)
+  - GET  /api/preferences/desktop-delivery.txt (CORS TXT Delivery for Daemons & CLI)
+  - POST /api/preferences/sync (Bi-directional State Sync)
+  - POST /api/scan-legacy-css (Chromium Engine Scanner)
+  - GET  /api/agents/discovery (Machine-parseable Discovery Spec)
+
+## 4. CSS Linter @import Guidance
+- Policy: @import cascaded waterfalls are prohibited in production bundles.
+- DO NOT: Do not use @import inside stylesheets because it blocks parallel network downloads.
+- WARN: Halts browser rendering until imported stylesheets are fully loaded (delaying FCP).
+- TIP: Use HTML <link rel="stylesheet"> or combine into a single minified bundle.

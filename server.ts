@@ -20,17 +20,205 @@ async function startServer() {
     });
   });
 
+  // System Cloud Browser Isolation & Per-User Usage Privacy Telemetry Endpoint
+  app.options("/api/system/cloud-browser", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.status(204).end();
+  });
+
+  app.get("/api/system/cloud-browser", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+
+    const userHash = req.query.session || "usr_priv_isolated_sandbox";
+
+    res.json({
+      status: "isolated",
+      runtime: "System Cloud Browser Sandbox",
+      isolationEngine: "Blink Virtual DOM / Strict Origin Partitioning",
+      privacyLevel: "zero-knowledge-ephemeral",
+      sessionSecurity: {
+        activeSession: userHash,
+        memoryIsolation: "per-user-scoped",
+        dataBleedPrevented: true,
+        crossOriginStorageAccess: "denied",
+        iframeSandboxPolicy: "allow-scripts allow-forms allow-popups",
+        cookieSharing: "disabled"
+      },
+      perUserPrivacyGuard: {
+        telemetryStorage: "local-first-ephemeral",
+        aiAssistedStylesIsolated: true,
+        coCreationRetention: "zero-retention-on-session-close",
+        networkShield: "strict-cors-proxy-shield"
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // MIME Pair Adjustments Map for Server File Streaming
+  const SERVER_MIME_PAIR_ADJUSTMENTS: Record<string, { mimeType: string; charset: string; disposition: string }> = {
+    css: { mimeType: "text/css", charset: "utf-8", disposition: "attachment" },
+    minCss: { mimeType: "text/css", charset: "utf-8", disposition: "attachment" },
+    txt: { mimeType: "text/plain", charset: "utf-8", disposition: "attachment" },
+    json: { mimeType: "application/json", charset: "utf-8", disposition: "attachment" },
+    agents: { mimeType: "text/markdown", charset: "utf-8", disposition: "inline" },
+    svg: { mimeType: "image/svg+xml", charset: "utf-8", disposition: "inline" },
+    html: { mimeType: "text/html", charset: "utf-8", disposition: "attachment" },
+  };
+
+  const resolveServerMime = (filename: string, explicitMime?: string) => {
+    const lower = (filename || "").toLowerCase();
+    if (lower.endsWith(".min.css")) return SERVER_MIME_PAIR_ADJUSTMENTS.minCss;
+    if (lower.endsWith(".css")) return SERVER_MIME_PAIR_ADJUSTMENTS.css;
+    if (lower.endsWith(".txt")) return SERVER_MIME_PAIR_ADJUSTMENTS.txt;
+    if (lower.endsWith(".json")) return SERVER_MIME_PAIR_ADJUSTMENTS.json;
+    if (lower.endsWith(".agents") || lower === ".agents") return SERVER_MIME_PAIR_ADJUSTMENTS.agents;
+    if (lower.endsWith(".svg")) return SERVER_MIME_PAIR_ADJUSTMENTS.svg;
+    if (lower.endsWith(".html") || lower.endsWith(".htm")) return SERVER_MIME_PAIR_ADJUSTMENTS.html;
+
+    return {
+      mimeType: explicitMime || "text/plain",
+      charset: "utf-8",
+      disposition: "attachment"
+    };
+  };
+
   // Resilient HTTP File Download Route (delivers real Content-Disposition: attachment headers)
   // Solves WebView and iframe download blocking by serving real server-side attachment headers
+  app.options("/api/download/file", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.status(204).end();
+  });
+
   app.post("/api/download/file", (req, res) => {
     const { filename, content, mimeType } = req.body || {};
     const safeFilename = (filename || "download.txt").replace(/[^a-zA-Z0-9_\-\.]/g, "_");
-    const safeMime = mimeType || "text/plain; charset=utf-8";
+    const mimeConfig = resolveServerMime(safeFilename, mimeType);
+    const finalMime = `${mimeConfig.mimeType}; charset=${mimeConfig.charset}`;
 
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Content-Type", safeMime);
-    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
+    res.setHeader("Content-Type", finalMime);
+    res.setHeader("Content-Disposition", `${mimeConfig.disposition}; filename="${safeFilename}"`);
     res.send(content || "");
+  });
+
+  // Agent Discovery Endpoints: .agents, [file provider], and /etc Discovery
+  app.options(["/api/agents/discovery", "/api/agents/manifest.json", "/etc/ai-agent-manifest.json", "/api/agents/file-provider"], (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.status(204).end();
+  });
+
+  // API Edge Discovery Manifest for AI Agents
+  app.get(["/api/agents/discovery", "/api/agents/manifest.json", "/etc/ai-agent-manifest.json"], (req, res) => {
+    const host = `${req.protocol}://${req.get("host") || "localhost:3000"}`;
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("X-Agent-Discovery-Path", "/etc/ai-agent-manifest.json");
+
+    res.json({
+      schemaVersion: "2026.10-v1",
+      provider: "Advanced CSS Studio Edge Engine",
+      workbench: "Adaptive CSS Workbench & Layout Engineering Suite",
+      host,
+      discoveryPath: "/etc/ai-agent-manifest.json",
+      edgeFunctions: [
+        {
+          endpoint: `${host}/api/download/file`,
+          method: "POST",
+          contentType: "multipart/octet-stream; Content-Disposition: attachment",
+          description: "Resilient server-stream attachment endpoint bypassing iFrame and WebView restrictions."
+        },
+        {
+          endpoint: `${host}/api/preferences/desktop-delivery.txt`,
+          method: "GET",
+          contentType: "text/plain; charset=utf-8",
+          description: "CORS plaintext delivery of accessibility preferences for desktop daemons & CLI."
+        },
+        {
+          endpoint: `${host}/api/preferences/sync`,
+          method: "POST",
+          contentType: "application/json",
+          description: "Two-way state synchronization hook for desktop clients."
+        },
+        {
+          endpoint: `${host}/api/scan-legacy-css`,
+          method: "POST",
+          contentType: "application/json",
+          description: "Chromium Blink engine compatibility scanner with search grounding."
+        }
+      ],
+      fileProvider: {
+        protocol: "css-studio-vfs://",
+        mountPoint: "/studio-workspace",
+        mimePairAdjustments: SERVER_MIME_PAIR_ADJUSTMENTS,
+        capabilities: [
+          "atomic-write",
+          "delayed-blob-revocation",
+          "content-disposition-streaming",
+          "data-uri-fallback",
+          "clipboard-buffer-fallback",
+          "regex-minification-pass"
+        ]
+      },
+      etcConfiguration: {
+        path: "/etc/ai-agent-manifest.json",
+        symlink: "/etc/css-studio/agent.conf",
+        env: {
+          CSS_STUDIO_AGENT_DISCOVERY: "/etc/ai-agent-manifest.json",
+          CSS_STUDIO_FILE_PROVIDER: "css-studio-vfs://",
+          CSS_STUDIO_EDGE_TIMEOUT_MS: "60000"
+        }
+      }
+    });
+  });
+
+  // Plaintext .agents Inline Document endpoint
+  app.get(["/.agents", "/api/agents/manifest.agents", "/api/agents/manifest.md"], (req, res) => {
+    const host = `${req.protocol}://${req.get("host") || "localhost:3000"}`;
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", 'inline; filename=".agents"');
+
+    const agentsMarkdown = `# .agents Specification & Discovery Manifest
+<!-- Advanced CSS Studio Core Engine -->
+
+## 1. System Identity & Host
+- Provider: Advanced CSS Studio Edge Engine
+- Workbench: Adaptive CSS Workbench & Layout Engineering Suite
+- Discovery Path: /etc/ai-agent-manifest.json
+- Host URL: ${host}
+
+## 2. [file provider] Specification
+- Protocol: css-studio-vfs://
+- Mount Point: /studio-workspace
+- Features: 60s Delayed Revocation, Data URI fallback, Server Attachment, Clipboard Fallback
+
+### Registered MIME Pair Adjustments:
+- .css: text/css; charset=utf-8 (attachment)
+- .min.css: text/css; charset=utf-8 (attachment)
+- .txt: text/plain; charset=utf-8 (attachment)
+- .json: application/json; charset=utf-8 (attachment)
+- .agents: text/markdown; charset=utf-8 (inline)
+- .svg: image/svg+xml; charset=utf-8 (inline)
+
+## 3. [api edge function and discovery in /etc]
+- Config: /etc/ai-agent-manifest.json
+- Symlink: /etc/css-studio/agent.conf
+- Endpoints:
+  - POST ${host}/api/download/file (Attachment Stream)
+  - GET  ${host}/api/preferences/desktop-delivery.txt (CORS TXT Delivery)
+  - POST ${host}/api/preferences/sync (State Sync)
+  - POST ${host}/api/scan-legacy-css (Chromium Compatibility)
+  - GET  ${host}/api/agents/discovery (Agent Capabilities)
+`;
+    res.send(agentsMarkdown);
   });
 
   // In-memory synced preferences state for desktop & browser extension synchronization

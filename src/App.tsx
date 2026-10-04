@@ -8,24 +8,31 @@ import { DesignTokensManager } from './components/DesignTokensManager';
 import { CssEditorAndExport } from './components/CssEditorAndExport';
 import { DocRegistryManager } from './components/DocRegistryManager';
 import { LegacySupportScanner } from './components/LegacySupportScanner';
+import { MockToProdLayerManager } from './components/MockToProdLayerManager';
+import { CloudBrowserNotification } from './components/CloudBrowserNotification';
 import { ExportModal } from './components/ExportModal';
 
-import { DevicePreset, ThemeMode, CpuMode, A11ySettings, CssComponentPreset } from './types';
+import { DevicePreset, ThemeMode, CpuMode, A11ySettings, CssComponentPreset, CloudBrowserSession } from './types';
 import { DEVICE_PRESETS } from './data/devicePresets';
 import { COMPONENT_PRESETS } from './data/preconfiguredPresets';
 import { diagnoseCss, applyAutoFix } from './utils/autofixEngine';
 import { analyzeCpuMetrics, generateCpuAdaptiveCss } from './utils/cpuAnalyzer';
 import { lintCss } from './utils/cssLinter';
 import { scanCssForLegacyIssues } from './utils/legacyBrowserScanner';
+import { analyzeMockToProd } from './utils/mockToProdEngine';
+import { getOrCreateCloudBrowserSession, rotateCloudBrowserSession, purgeEphemeralStorage } from './utils/cloudBrowserManager';
 
 export default function App() {
   // Navigation & View State
-  const [activeTab, setActiveTab] = useState<'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'autofix' | 'cpu' | 'tokens' | 'a11y' | 'editor' | 'registry' | 'legacy' | 'mocktoprod'>('preview');
   const [currentDevice, setCurrentDevice] = useState<DevicePreset>(DEVICE_PRESETS[1]); // iPhone 15/16 default
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [cpuMode, setCpuMode] = useState<CpuMode>('auto');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+
+  // System Cloud Browser Isolated Session State
+  const [cloudSession, setCloudSession] = useState<CloudBrowserSession>(() => getOrCreateCloudBrowserSession());
 
   // Active Component and active CSS
   const [selectedComponent, setSelectedComponent] = useState<CssComponentPreset>(COMPONENT_PRESETS[0]);
@@ -79,6 +86,23 @@ export default function App() {
   const legacyReport = useMemo(() => {
     return scanCssForLegacyIssues(activeCss);
   }, [activeCss]);
+
+  // Run Real-time Mock-to-Prod Engineering Analysis
+  const mockToProdReport = useMemo(() => {
+    return analyzeMockToProd(activeCss);
+  }, [activeCss]);
+
+  // Cloud Browser Session rotation and storage purge handlers
+  const handleRotateCloudSession = () => {
+    const fresh = rotateCloudBrowserSession();
+    setCloudSession(fresh);
+    notify('Rotated cloud browser session token. New private ephemeral context created.');
+  };
+
+  const handlePurgeCloudStorage = () => {
+    purgeEphemeralStorage();
+    notify('Purged ephemeral virtual DOM memory and isolated caches.');
+  };
 
   // Run Real-time CPU Analysis
   const cpuMetrics = useMemo(() => {
@@ -166,6 +190,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+      {/* System Cloud Browser Isolation & Usage Privacy Notification Banner */}
+      <CloudBrowserNotification
+        session={cloudSession}
+        onRotateSession={handleRotateCloudSession}
+        onPurgeStorage={handlePurgeCloudStorage}
+      />
+
       {/* Global Application Header */}
       <Header
         currentDevice={currentDevice}
@@ -182,6 +213,7 @@ export default function App() {
         lintIssueCount={linterResult.issues.length}
         lintErrorCount={linterResult.errorCount}
         legacyRiskCount={legacyReport.highRiskCount + legacyReport.moderateRiskCount}
+        mockToProdRiskCount={mockToProdReport.risks.length}
         onOpenExport={() => setIsExportModalOpen(true)}
         onRunAutofixAll={handleApplyAllFixes}
         activeTab={activeTab}
@@ -305,6 +337,20 @@ export default function App() {
                 notify('Active CSS updated with modern alternative / legacy fallback!');
               }}
               onNavigateToEditor={() => setActiveTab('editor')}
+            />
+          </div>
+        )}
+
+        {activeTab === 'mocktoprod' && (
+          <div className="flex-1 overflow-auto">
+            <MockToProdLayerManager
+              activeCss={activeCss}
+              onUpdateCss={(newCss) => {
+                setActiveCss(newCss);
+                notify('Active CSS hardened for production environments!');
+              }}
+              onNavigateToPreview={() => setActiveTab('preview')}
+              notify={notify}
             />
           </div>
         )}

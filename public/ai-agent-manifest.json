@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "2026.10-v1",
+  "provider": "Advanced CSS Studio Edge Engine",
+  "workbench": "Adaptive CSS Workbench & Layout Engineering Suite",
+  "discoveryPath": "/etc/ai-agent-manifest.json",
+  "edgeFunctions": [
+    {
+      "endpoint": "/api/download/file",
+      "method": "POST",
+      "contentType": "multipart/octet-stream; Content-Disposition: attachment",
+      "description": "Resilient server-stream attachment endpoint bypassing iFrame and WebView restrictions."
+    },
+    {
+      "endpoint": "/api/preferences/desktop-delivery.txt",
+      "method": "GET",
+      "contentType": "text/plain; charset=utf-8",
+      "description": "CORS plaintext delivery of accessibility preferences for desktop daemons & CLI."
+    },
+    {
+      "endpoint": "/api/preferences/sync",
+      "method": "POST",
+      "contentType": "application/json",
+      "description": "Two-way state synchronization hook for desktop clients."
+    },
+    {
+      "endpoint": "/api/scan-legacy-css",
+      "method": "POST",
+      "contentType": "application/json",
+      "description": "Chromium Blink engine compatibility scanner with search grounding."
+    },
+    {
+      "endpoint": "/api/agents/discovery",
+      "method": "GET",
+      "contentType": "application/json",
+      "description": "Live machine-parseable discovery endpoint for AI Agents and automated file orchestrators."
+    }
+  ],
+  "fileProvider": {
+    "protocol": "css-studio-vfs://",
+    "mountPoint": "/studio-workspace",
+    "mimePairAdjustments": {
+      ".css": "text/css; charset=utf-8",
+      ".min.css": "text/css; charset=utf-8",
+      ".txt": "text/plain; charset=utf-8",
+      ".json": "application/json; charset=utf-8",
+      ".agents": "text/markdown; charset=utf-8",
+      ".svg": "image/svg+xml; charset=utf-8"
+    },
+    "capabilities": [
+      "atomic-write",
+      "delayed-blob-revocation",
+      "content-disposition-streaming",
+      "data-uri-fallback",
+      "clipboard-buffer-fallback",
+      "regex-minification-pass"
+    ]
+  },
+  "etcConfiguration": {
+    "path": "/etc/ai-agent-manifest.json",
+    "symlink": "/etc/css-studio/agent.conf",
+    "env": {
+      "CSS_STUDIO_AGENT_DISCOVERY": "/etc/ai-agent-manifest.json",
+      "CSS_STUDIO_FILE_PROVIDER": "css-studio-vfs://",
+      "CSS_STUDIO_EDGE_TIMEOUT_MS": "60000"
+    }
+  }
+}
